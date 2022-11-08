@@ -3,6 +3,7 @@ import math
 from itertools import islice
 import sqlalchemy  # This might need to be installed
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 def take(n, iterable):
@@ -85,6 +86,26 @@ def write_table3_to_db(table_name, diffData, idlFnIdx, engine):
     df.head(4)
 
 
+def plotTestData(data):
+    X = [x for [x, y] in data]
+    Y = [y for [x, y] in data]
+    plt.scatter(X, Y)
+
+
+def plotSelectedFn(ideal_data, ordered_ideals):
+    X = [row[0] for row in ideal_data]
+    for idx in ordered_ideals:
+        Y = [row[idx] for row in ideal_data]
+        plt.plot(X, Y)
+
+
+def plotTrainData(train_data):
+    X = [row[0] for row in train_data]
+    for idx in range(1, 5):
+        Y = [row[idx] for row in train_data]
+        plt.plot(X, Y)
+
+
 # main starting point of the script
 train_data_filepath = "../Daten/train.csv"
 ideal_data_filepath = "../Daten/ideal.csv"
@@ -130,9 +151,18 @@ for idealFnIdx in ordered_ideals:
 # if we get here then the ideal function selected are confirmed to be good
 
 
-# 33,31,45,3
-print(ordered_ideals)
-print(ideal_data[1][33])
+# visualization
+plt.figure(0)
+plotTestData(test_data)
+plotSelectedFn(ideal_data, ordered_ideals)
+
+plt.figure(1)
+plotTestData(test_data)
+plotTrainData(train_data)
+plotSelectedFn(ideal_data, ordered_ideals)
+
+plt.show()
+
 
 
 
