@@ -1,6 +1,8 @@
 import csv
 import math
 from itertools import islice
+import sqlalchemy  # This might need to be installed
+import pandas as pd
 
 
 def take(n, iterable):
@@ -25,7 +27,7 @@ def findN(train_data, ideal_data, ordered_ideals):
 # calculate the max error between a particular ideal function idealFnIdx and the test data
 # test data is a list of lists [[x,y]]
 # test data is not ordered by x so this is why i need to find the matching x from test data into the ideal function data
-def findM(test_data, ideal_data, idealFnIdx):
+def findM(test_data, ideal_data, idealFnIdx, diffData):
     M = 0.0
     pointstest = len(test_data)
     pointideal = len(ideal_data)
@@ -33,6 +35,7 @@ def findM(test_data, ideal_data, idealFnIdx):
         for pi in range(0, pointideal):
             if test_data[p][0] == ideal_data[pi][0]:
                 err = math.fabs(test_data[p][1] - ideal_data[pi][idealFnIdx])
+                diffData.append([test_data[p][0], test_data[p][1], err, ideal_data[pi][idealFnIdx]])
                 if err > M:
                     M = err
                 # print(f'findM: found  new max for ideal function {idealFnIdx} at location {p} = {err}')
@@ -53,10 +56,47 @@ def read_data(filepath):
         return data
 
 
-train_data = read_data("../Daten/train.csv")
+def save_csv_to_sqlite(table_name, filepath, engine):
+    with open(filepath, 'r') as file:
+        data_df = pd.read_csv(file)
+        data_df.to_sql(table_name, con=engine, index=True, index_label='id', if_exists='replace')
 
-ideal_data = read_data("../Daten/ideal.csv")
 
+def write_table3_to_db(table_name, diffData, idlFnIdx, engine):
+    connection = engine.connect()
+    metadata = sqlalchemy.MetaData()
+
+    emp = sqlalchemy.Table(table_name, metadata,
+                           sqlalchemy.Column('X', sqlalchemy.Integer()),
+                           sqlalchemy.Column('Y1', sqlalchemy.Float()),
+                           sqlalchemy.Column('DeltaY', sqlalchemy.Float()),
+                           sqlalchemy.Column(f'Funk{idlFnIdx}', sqlalchemy.Float())
+                           )
+    metadata.create_all(engine)
+    # Inserting record one by one
+    for line in diffData:
+        dict = {'X': line[0], 'Y1': line[1], 'DeltaY': line[2], f'Funk{idlFnIdx}': line[3]}
+        query = sqlalchemy.insert(emp).values(dict)
+        ResultProxy = connection.execute(query)
+
+    results = connection.execute(sqlalchemy.select([emp])).fetchall()
+    df = pd.DataFrame(results)
+    df.columns = results[0].keys()
+    df.head(4)
+
+
+# main starting point of the script
+train_data_filepath = "../Daten/train.csv"
+ideal_data_filepath = "../Daten/ideal.csv"
+
+engine = sqlalchemy.create_engine(f'sqlite:///data.db')
+save_csv_to_sqlite('train', train_data_filepath, engine)
+save_csv_to_sqlite('ideal', ideal_data_filepath, engine)
+
+train_data = read_data(train_data_filepath)
+ideal_data = read_data(ideal_data_filepath)
+
+# start 1
 ordered_ideals = dict()
 points = len(train_data)
 for i in range(0, 50):
@@ -68,18 +108,27 @@ for i in range(0, 50):
 
 ordered_ideals = dict(sorted(ordered_ideals.items(), key=lambda item: item[1]))
 
+# start 2a
 test_data = read_data("../Daten/test.csv")
 
 ordered_ideals = list(ordered_ideals)[0:4]
 
 N = findN(train_data, ideal_data, ordered_ideals)
 for idealFnIdx in ordered_ideals:
-    M = findM(test_data, ideal_data, idealFnIdx)
+    # find M fills diffData used to write table 3 in the DB.
+    # for each of the confirmed function we are going now to create a 4 column table
+    # x,y,y-idealy (squared), ideally
+    diffData = []
+    M = findM(test_data, ideal_data, idealFnIdx, diffData)
+    print(diffData)
     print(f'{idealFnIdx} ----> N = {N}, M = {M}')
     if M >= math.sqrt(2) * N:
         raise Exception(f'the ideal function {idealFnIdx} is not confirmed by the test data')
 
+    write_table3_to_db(f'table3_idealFn_{idealFnIdx}', diffData, idealFnIdx, engine)
+
 # if we get here then the ideal function selected are confirmed to be good
+
 
 # 33,31,45,3
 print(ordered_ideals)
