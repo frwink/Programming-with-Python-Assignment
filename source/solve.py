@@ -22,8 +22,7 @@ ideal_data=csvreader.read_data(ideal_data_filepath)
 
 #start 1
 idealFnsProcessor = IdealFunctionSumSquareValues(train_data, ideal_data)
-ordered_ideals = idealFnsProcessor.find_best_ideals(4)
-
+ordered_ideals = idealFnsProcessor.find_best_ideals()
 
 #start 2a
 test_data=csvreader.read_data("../Daten/test.csv")

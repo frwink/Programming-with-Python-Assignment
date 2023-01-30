@@ -14,7 +14,7 @@ class IdealFunctionProcessor:
     Find the best fitting k ideal functions
     """
 
-    def find_best_ideals(self, k):
+    def find_best_ideals(self):
         pass
 
 
@@ -25,27 +25,34 @@ class IdealFunctionSumSquareValues:
         self.numIdealFns = len(self.ideal_data[0]) - 1
         self.numTrainFns = len(self.train_data[0]) - 1
 
-    """
-    Find the best fitting k ideal functions using the ssr as metric
-    """
+    def find_best_ideals(self):
+        """
+        Find the best fitting  ideal functions using the ssr as metric
 
-    def find_best_ideals(self, k):
-        assert (k > 0 and k < self.numIdealFns)
+        For each of the 4 function in the train dataset, it will try to find the best fitting function in the ideal data.
+        The result of this function is a list of 4 elements.
+        Each element of this list is a number, representing the ideal function that best fit a train fnction.
 
-        ordered_ideals = dict()
+        For example if the be find_best_ideals returns [4,6,22,11] it means that the best fitting function for train function 0 is the ideal function 4
+        and the best fitting for the train function 1 is the ideal function 6 etc.
+        """
+        ordered_ideals = []
         points = len(self.train_data)
 
-        # For each ideal function it calculates its ssr
-        for i in range(0, self.numIdealFns):
-            ssr = 0
-            for j in range(0, self.numTrainFns):
+        # for each train function try to find the best fitting ideal function out of the 50 provided
+        for j in range(0, self.numTrainFns):
+            best_ssr = float('inf')
+            best_ideal = 0
+            for i in range(0, self.numIdealFns):
+                ssr = 0
                 for p in range(0, points):
                     ssr = ssr + (self.train_data[p][j + 1] - self.ideal_data[p][i + 1]) ** 2
-            ordered_ideals[i + 1] = ssr
+                if best_ssr > ssr:
+                    best_ssr = ssr
+                    best_ideal = i
 
-        # sort ideal functions by ssr and take the
-        ordered_ideals = dict(sorted(ordered_ideals.items(), key=lambda item: item[1]))
-        ordered_ideals = list(ordered_ideals)[0:k]
+            ordered_ideals.append(best_ideal + 1)
+
         return ordered_ideals
 
 
